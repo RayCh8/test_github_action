@@ -6,7 +6,7 @@ on:
 
 jobs:
   run_sync_models_to_at_gem_modules:
-    runs-on: lightweight
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout rails code
         uses: actions/checkout@v2
