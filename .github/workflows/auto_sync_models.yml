@@ -1,0 +1,80 @@
+name: "Auto sync models to at-gem-models"
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  run_sync_models_to_at_gem_modules:
+    needs: run_check_if_model_changed
+    runs-on: lightweight
+    outputs:
+      newVer: ${{ steps.updateVersion.outputs.newVer }}
+      jobSuccess: ${{ steps.commitFiles.outputs.jobSuccess }}
+    steps:
+      - name: Checkout rails code
+        uses: actions/checkout@v2
+        with:
+          path: ./rails
+          fetch-depth: 1
+
+      - name: Checkout at-gem-modules code
+        uses: actions/checkout@v2
+        with:
+          repository: AmazingTalker/at-gem-modules
+          token: ${{ secrets.GH_IT_TOKEN_RAILS_CI }}
+          path: ./at-gem-modules
+
+      - name: Copy models to at-gem-models
+        shell: bash
+        run: |
+          cp -R ./rails/app/models/* ./at-gem-modules/gems/at-gem-models/lib/at-gem-models
+
+      - name: Update at-gem-models version
+        id: updateVersion
+        shell: bash
+        working-directory: ./at-gem-modules
+        run: |
+          major=$(cat ./gems/at-gem-models/VERSION | cut -d'.' -f1)
+          minor=$(cat ./gems/at-gem-models/VERSION | cut -d'.' -f2)
+          patch=$(cat ./gems/at-gem-models/VERSION | cut -d'.' -f3)
+          new_patch=$(expr $patch + 1)
+          echo '----------'
+          echo "Old version=$major.$minor.$patch"
+          echo "Latest version=$major.$minor.$new_patch"
+          echo '----------'
+          sed -i "s/$major.$minor.$patch/$major.$minor.$new_patch/1" ./gems/at-gem-models/VERSION
+          echo "newVer=$major.$minor.$new_patch" >> $GITHUB_ENV
+
+      - name: Setup environment variables into .env file
+        shell: bash
+        working-directory: ./at-gem-modules
+        run: |
+          sed -e "s/GITHUB_TOKEN=/GITHUB_TOKEN=${{ secrets.GH_PACKAGE_ACCESS_TOKEN }}/1" ".env.example" > ".env"
+
+      - name: Set github config
+        working-directory: ./at-gem-modules
+        run: |
+          ls -al /home/runner
+          echo '----------'
+          git config --list
+          echo '----------'
+          git config --global user.email "rd+sre_bot@amazingtalker.com"
+          git config --global user.name "AmazingTalker SRE bot"
+          echo '----------'
+          ls -al /home/runner
+          echo '----------'
+          git config --list
+
+      - name: Install docker-compose
+        uses: KengoTODA/actions-setup-docker-compose@main
+        with:
+          version: 1.29.2
+
+      - name: Deploy at-gem-models
+        id: deployModels
+        working-directory: ./at-gem-modules
+        run: |
+          make build
+          make run
+          echo "deployResult=$(make deploy.ci g=models | grep -c 'Successfully registered gem')" >> $GITHUB_ENV
