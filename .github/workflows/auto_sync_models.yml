@@ -11,6 +11,8 @@ jobs:
       - name: Checkout rails code
         uses: actions/checkout@v2
         with:
+          repository: AmazingTalker/rails
+          token: ${{ secrets.GH_IT_TOKEN_RAILS_CI }}
           path: ./rails
           fetch-depth: 1
 
