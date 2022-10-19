@@ -6,11 +6,7 @@ on:
 
 jobs:
   run_sync_models_to_at_gem_modules:
-    needs: run_check_if_model_changed
     runs-on: lightweight
-    outputs:
-      newVer: ${{ steps.updateVersion.outputs.newVer }}
-      jobSuccess: ${{ steps.commitFiles.outputs.jobSuccess }}
     steps:
       - name: Checkout rails code
         uses: actions/checkout@v2
